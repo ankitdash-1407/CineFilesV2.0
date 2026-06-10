@@ -6,52 +6,47 @@ import java.net.http.HttpResponse;
 public class ApiManager {
 
     // You will need to get a free API key from omdbapi.com
-    private static final String API_KEY = "6b157274";
+    // Instead of: private static final String API_KEY = "12345abc";
+    private static final String API_KEY = System.getenv("OMDB_API_KEY");
 
-    public static void fetchAndCacheMovie(String title) {
+    // 1. The Promise: Change 'void' to 'Movie'
+    public static Movie fetchAndCacheMovie(String title) {
         System.out.println("[🌐 CACHE MISS] Movie not found locally. Connecting to OMDb API...");
 
-        // 1. Format the title for a URL (e.g., "The Dark Knight" -> "The+Dark+Knight")
         String formattedTitle = title.replace(" ", "+");
         String url = "http://www.omdbapi.com/?t=" + formattedTitle + "&apikey=" + API_KEY;
 
         try {
-            // 2. Build the Internet Request
             HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .GET()
-                    .build();
+            HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).GET().build();
 
-            // 3. Send the request and wait for the response
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             String jsonResponse = response.body();
 
-            // 4. Did the API find the movie?
+            // 2. If the API fails to find it, return an empty hand (null)
             if (jsonResponse.contains("\"Response\":\"False\"")) {
-                System.out.println("[FAILED] Movie does not exist on the internet.");
-                return;
+                return null;
             }
 
-            // 5. Parse the data out of the JSON response (Basic String extraction)
+            // Extract the groceries
             String fetchedTitle = extractJsonValue(jsonResponse, "Title");
             String fetchedGenre = extractJsonValue(jsonResponse, "Genre");
             String imdbRatingStr = extractJsonValue(jsonResponse, "imdbRating");
-
-            // Convert rating to a decimal (Default to 0.0 if "N/A")
             double rating = imdbRatingStr.equals("N/A") ? 0.0 : Double.parseDouble(imdbRatingStr);
 
-            System.out.println("\n[📡 LOADED FROM INTERNET - 500ms]");
-            System.out.println("🎬 Title:  " + fetchedTitle);
-            System.out.println("🎭 Genre:  " + fetchedGenre);
-            System.out.println("⭐ Rating: " + rating + "/10");
-
-            // 6. THE CRITICAL STEP: Save it to our local MySQL Vault for next time!
+            // 3. THE CACHE: Save it to the database behind the scenes
             MovieManager.addMovie(fetchedTitle, fetchedGenre, rating);
-            System.out.println("[SYSTEM] Movie successfully cached in local database.");
+            int fetchedId = MovieManager.getMovieId(fetchedTitle);
+
+            // 4. THE BUCKET: Pack the groceries into the Movie object
+            Movie internetMovieBucket = new Movie(fetchedId,fetchedTitle, fetchedGenre, rating);
+
+            // 5. THE DELIVERY: Hand the bucket back to the Main Engine
+            return internetMovieBucket;
 
         } catch (Exception e) {
             System.err.println("[CRITICAL] Internet connection failed: " + e.getMessage());
+            return null; // Return empty hand if the internet breaks
         }
     }
 

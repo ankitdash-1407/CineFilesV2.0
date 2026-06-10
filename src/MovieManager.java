@@ -50,7 +50,7 @@ public class MovieManager {
     }
 
     // --- THE CACHE CHECK: Look in local database first ---
-    public static boolean searchLocalDatabase(String title) {
+    public static Movie searchLocalDatabase(String title) {
         String sql = "SELECT * FROM Movies WHERE title = ?";
 
         try (Connection conn = DatabaseEngine.connect();
@@ -59,19 +59,26 @@ public class MovieManager {
             pstmt.setString(1, title);
             java.sql.ResultSet rs = pstmt.executeQuery();
 
+
             // If rs.next() is true, the movie exists in our Vault!
             if (rs.next()) {
-                System.out.println("\n[⚡ LOADED FROM LOCAL VAULT - 5ms]");
-                System.out.println("🎬 Title:  " + rs.getString("title"));
-                System.out.println("🎭 Genre:  " + rs.getString("attribute"));
-                System.out.println("⭐ Rating: " + rs.getDouble("rating") + "/10");
-                return true;
+                // Step A: Extract the loose groceries from MySQL
+                int fetchedId = rs.getInt("movie_id");
+                String fetchedTitle = rs.getString("title");
+                String fetchedGenre = rs.getString("attribute");
+                double fetchedRating = rs.getDouble("rating");
+
+                // Step B: Pack the groceries into the Bucket
+                Movie myMovieBucket = new Movie( fetchedId,fetchedTitle, fetchedGenre, fetchedRating);
+
+                // Step C: Hand the bucket back to the main engine
+                return myMovieBucket;
             }
         } catch (SQLException e) {
             System.err.println("[CRITICAL] Search failed: " + e.getMessage());
         }
 
-        // Movie was not found in our database
-        return false;
+        // 3. If movie was not found, return an empty hand (null) instead of false
+        return null;
     }
 }

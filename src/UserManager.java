@@ -25,7 +25,7 @@ public class UserManager {
 
     // The method to push a new user across the bridge
     // Update the method to accept a password
-    public static void registerUser(String username, String email, String plainTextPassword) {
+    public static boolean registerUser(String username, String email, String plainTextPassword) {
 
         // 1. Hash the password IMMEDIATELY
         String securedHash = hashPassword(plainTextPassword);
@@ -41,53 +41,51 @@ public class UserManager {
             pstmt.setString(3, securedHash); // We send the ground beef, NOT the steak!
 
             pstmt.executeUpdate();
-            System.out.println("[SUCCESS] New Cinephile Registered securely!");
+            return true;
 
         } catch (SQLException e) {
-            System.err.println("[FAILED] Could not register user: " + e.getMessage());
+            return false;
         }
     }
 
     // The method to check if a user exists and the password matches
-    public static boolean verifyLogin(String inputUsername, String inputPassword) {
+    // 1. The Promise: Change 'boolean' to 'User'
+    public static User verifyLogin(String inputUsername, String inputPassword) {
 
-        // 1. The Blueprint (We only need to fetch the saved hash)
-        String sql = "SELECT password_hash FROM Users WHERE username = ?";
+        // 2. The Updated Blueprint: Ask for ALL the groceries we need for the bucket!
+        String sql = "SELECT user_id, username, email, password_hash FROM Users WHERE username = ?";
 
         try (Connection conn = DatabaseEngine.connect();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            // 2. Put the typed username into the envelope
             pstmt.setString(1, inputUsername);
-
-            // 3. Execute the READ command
             java.sql.ResultSet rs = pstmt.executeQuery();
 
-            // 4. Did we find the user?
             if (rs.next()) {
-                // Yes! Grab the saved hash from the vault
                 String savedHash = rs.getString("password_hash");
-
-                // 5. Grind the new input password into a hash
                 String attemptHash = hashPassword(inputPassword);
 
-                // 6. Compare the two hashes
                 if (savedHash.equals(attemptHash)) {
-                    System.out.println("[SUCCESS] Identity verified. Access Granted.");
-                    return true;
-                } else {
-                    System.out.println("[FAILED] Incorrect password.");
-                    return false;
-                }
-            } else {
-                System.out.println("[FAILED] User not found in the system.");
-                return false;
-            }
+                    // --- SUCCESS! ---
+                    // Step A: Extract the data
+                    int fetchedId = rs.getInt("user_id");
+                    String fetchedUsername = rs.getString("username");
+                    String fetchedEmail = rs.getString("email");
 
+                    // Step B: Pack the User bucket (Make sure your User.java constructor matches this!)
+                    User loggedInUserBucket = new User(fetchedId, fetchedUsername, fetchedEmail);
+
+                    // Step C: Hand the bucket back to the Engine
+                    return loggedInUserBucket;
+                }
+            }
         } catch (SQLException e) {
+            // Keep error messages clean, but no UI messages!
             System.err.println("[CRITICAL] Login query failed: " + e.getMessage());
-            return false;
         }
+
+        // 3. The Catch-All: If password fails, user isn't found, or database crashes, return empty hand.
+        return null;
     }
 
     // --- THE TRANSLATOR: Get User ID ---

@@ -4,15 +4,20 @@ import java.sql.SQLException;
 
 public class DatabaseEngine {
 
-    // The exact GPS coordinates to your specific database vault
-    private static final String URL = "jdbc:mysql://localhost:3306/cinefiles_v3";
-
-    // The Master Keys
-    private static final String USER = "root";
-    private static final String PASSWORD = "SasmitaDash@1407";
+    // Read variables dynamically from the system environment
+    private static final String URL = System.getenv("DB_URL");
+    private static final String USER = System.getenv("DB_USER");
+    private static final String PASSWORD = System.getenv("DB_PASSWORD");
 
     // The Bridge Method
     public static Connection connect() {
+        // Safety guard: Check if the variables actually exist in IntelliJ's memory
+        if (URL == null || USER == null || PASSWORD == null) {
+            System.err.println("[CRITICAL] Database Bridge Setup Failed!");
+            System.err.println("Error Details: Environment variables (DB_URL, DB_USER, or DB_PASSWORD) are missing.");
+            return null;
+        }
+
         try {
             Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
             System.out.println("[SYSTEM] Database Bridge Connected Successfully.");
